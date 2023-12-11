@@ -2,11 +2,13 @@
 const express = require('express');
 const http = require('http');
 const socketIO = require('socket.io');
+const cors = require('cors'); // Import the cors middleware
 
 const app = express();
 const server = http.createServer(app);
 const io = socketIO(server);
 
+app.use(cors());
 app.use(express.static('public'));
 
 let rectangles = {};
@@ -41,5 +43,5 @@ io.on('connection', (socket) => {
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+  console.log(`localhost:${PORT}`);
 });
