@@ -1,0 +1,114 @@
+<!-- public/index.html -->
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Socket.io Rectangles</title>
+    <style>
+        canvas {
+            border: 1px solid #000;
+        }
+    </style>
+</head>
+
+<body>
+    <canvas id="canvas" width="800" height="600"></canvas>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.1.3/socket.io.js"></script>
+    <script>
+        const socket = io();
+
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        const rectangles = {};
+        const rectsize = 50;
+        function drawRectangle(rect) {
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            for (const id in rectangles) {
+                ctx.fillRect(rectangles[id].x, rectangles[id].y, rectsize, rectsize);
+            }
+        }
+
+        canvas.addEventListener('mousedown', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+
+            if (e.button === 0) {
+                // Left mouse button: Move existing rectangle
+                for (const id in rectangles) {
+                    const rect = rectangles[id];
+                    if (
+                        mouseX >= rect.x &&
+                        mouseX <= rect.x + rectsize &&
+                        mouseY >= rect.y &&
+                        mouseY <= rect.y + rectsize
+                    ) {
+                        const offsetX = mouseX - rect.x;
+                        const offsetY = mouseY - rect.y;
+
+                        const onMouseMove = (event) => {
+                            const newX = event.clientX - canvas.getBoundingClientRect().left - offsetX;
+                            const newY = event.clientY - canvas.getBoundingClientRect().top - offsetY;
+                            drawRectangle(rect);
+                            rect.x = newX;
+                            rect.y = newY;
+                            drawRectangle(rect);
+
+                            // Emit the new position to the server
+                            socket.emit('moveRectangle', { id, x: newX, y: newY });
+                        };
+
+                        const onMouseUp = () => {
+                            document.removeEventListener('mousemove', onMouseMove);
+                            document.removeEventListener('mouseup', onMouseUp);
+                        };
+
+                        document.addEventListener('mousemove', onMouseMove);
+                        document.addEventListener('mouseup', onMouseUp);
+                    }
+                }
+            } else if (e.button === 2) {
+                // Right mouse button: Create new rectangle
+                const rectX = mouseX;
+                const rectY = mouseY;
+                const newRectangle = { x: rectX, y: rectY };
+
+                drawRectangle(newRectangle);
+
+                // Emit the new rectangle to the server
+                socket.emit('createRectangle', { x: rectX-rectsize/2, y: rectY-rectsize/2 });
+
+                canvas.addEventListener('contextmenu', (e) => {
+                    e.preventDefault();
+                });
+            }
+        });
+
+        // Listen for existing rectangles from the server
+        socket.on('initRectangles', (data) => {
+            data.forEach((rect) => {
+                rectangles[rect.id] = rect;
+                drawRectangle(rect);
+            });
+        });
+
+        // Listen for rectangle movement from other clients
+        socket.on('moveRectangle', (data) => {
+            rectangles[data.id] = data;
+            drawRectangle(data);
+        });
+
+        // Listen for new rectangle creation from other clients
+        socket.on('createRectangle', (data) => {
+            rectangles[data.id] = data;
+            drawRectangle(data);
+        });
+    </script>
+</body>
+
+</html>
