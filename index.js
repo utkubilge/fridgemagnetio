@@ -1,14 +1,11 @@
-// server.js
 const express = require('express');
 const http = require('http');
 const socketIO = require('socket.io');
-//const cors = require('cors'); // Import the cors middleware
 
 const app = express();
 const server = http.createServer(app);
 const io = socketIO(server);
 
-//app.use(cors());
 app.use(express.static('public'));
 
 let rectangles = {};
@@ -16,12 +13,9 @@ let rectangles = {};
 io.on('connection', (socket) => {
   console.log('A user connected');
 
-  // Emit existing rectangles to the new client
   socket.emit('initRectangles', Object.values(rectangles));
 
-  // Handle rectangle movement
-  socket.on('moveRectangle', (data) => {
-    const { id, x, y } = data;
+  socket.on('moveRectangle', ({ id, x, y }) => {
     if (rectangles[id]) {
       rectangles[id].x = x;
       rectangles[id].y = y;
@@ -29,10 +23,9 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Handle new rectangle creation
-  socket.on('createRectangle', (data) => {
+  socket.on('createRectangle', ({ x, y }) => {
     const id = socket.id + '_' + Date.now();
-    rectangles[id] = { id, x: data.x, y: data.y };
+    rectangles[id] = { id, x, y };
     io.emit('createRectangle', rectangles[id]);
   });
 
